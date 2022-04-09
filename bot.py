@@ -6,6 +6,8 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 
 
 def normalize(text):  # Создаем функцию, которая удалит знаки препинания и приведет текст к нижнему регистру
@@ -107,4 +109,27 @@ CountVectorizer()
 X_vectorized = vectorizer.transform(X)  # Трансформирует текст в вектор (наборы чисел)
 
 model = LogisticRegression()  # Настройки
-model.fit()  # Модель научиться по X определять y
+model.fit(X_vectorized, y)  # Модель научиться по X определять y
+
+
+BOT_KEY = '5042422719:AAGDb3wzvSdPHWk-bcW_tlnX704SMnmhb28'
+
+
+def hello(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(f'Hello {update.effective_user.first_name}')
+
+
+def botMessage(update: Update, context: CallbackContext):
+    text = update.message.text
+    reply = bot(text)
+    update.message.reply_text(reply)
+
+
+updater = Updater(BOT_KEY)
+
+updater.dispatcher.add_handler(CommandHandler('hello', hello))
+updater.dispatcher.add_handler(MessageHandler(Filters.text, botMessage))
+
+updater.start_polling()
+updater.idle()
+

@@ -2,45 +2,16 @@ import random
 import json
 
 import nltk
+import sklearn.feature_extraction.text
 
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.linear_model import LogisticRegression
+# from sklearn.feature_extraction.text import CountVectorizer
+# from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 
 
 with open("BOT_CONFIG.json", "r", encoding="utf8") as file:
     BOT_CONFIG = json.load(file)
-
-
-# X = []
-# y = []
-#
-# count = 0
-#
-# for intent in BOT_CONFIG["intents"].keys():
-#     try:
-#         for example in BOT_CONFIG["intents"][intent]["examples"]:
-#             X.append(example)
-#             y.append(intent)
-#     except KeyError:
-#         print(BOT_CONFIG["intents"][intent])
-
-
-X = []
-y = []
-for intent in BOT_CONFIG['intents']:
-    X += BOT_CONFIG['intents'][intent]['examples']
-    y += [intent] * len(BOT_CONFIG['intents'][intent]['examples'])
-
-
-vectorizer = CountVectorizer()
-X_vectorized = vectorizer.fit_transform(X)
-
-
-model = LogisticRegression(random_state=42)
-model.fit(X_vectorized, y)
-
-
-# print(model.predict(vectorizer.transform(["Депрессия"])))
 
 
 def clean(text):
@@ -54,12 +25,48 @@ def clean(text):
 def compare(s1, s2):
     return nltk.edit_distance(s1, s2) / ((len(s1) + len(s2)) / 2) < 0.4
 
+
 def get_intent(question):
     for intent in BOT_CONFIG['intents']:
         for example in BOT_CONFIG['intents'][intent]['examples']:
             if compare(clean(example), clean(question)):
                 return intent
     return 'Не удалось определить интент'
+
+# Обучение модели
+
+
+X = []
+y = []
+for intent in BOT_CONFIG['intents']:
+    X += BOT_CONFIG['intents'][intent]['examples']
+    y += [intent] * len(BOT_CONFIG['intents'][intent]['examples'])
+
+
+len(X), len(y)
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+len(X_train), len(X_test)
+
+
+vectorizer = sklearn.feature_extraction.text.CountVectorizer(analyzer='char', ngram_range=(1, 2), min_df=1)
+vectorizer.fit(X_train)
+
+
+X_train_vectorized = vectorizer.transform(X_train)
+X_test_vectorized = vectorizer.transform(X_test)
+
+
+classifier = RandomForestClassifier()
+classifier.fit(X_train_vectorized, y_train)
+
+
+def get_intent_by_ml(text):
+    return classifier.predict(vectorizer.transform([text]))[0]
+
+
+# print(model.predict(vectorizer.transform(["Депрессия"])))
 
 
 # def get_intent(input_text):
@@ -83,6 +90,8 @@ def get_intent(question):
 def get_intent_by_ml(text):
     return model.predict(vectorizer.transform([text]))[0]
 
+# Запуск Бота
+
 
 def bot(ml):
     question = input()
@@ -102,11 +111,16 @@ while True:
     bot(True)
 
 
-# input_text = ""
-# print("Для выхода из диалога напишите Stop")
-#
-# while True:
-#     input_text = input()
-#     if input_text == "Stop":
-#         break
-#     print(bot(input_text))
+# Подключение Telegram
+
+
+def bot(ml, question):
+    if ml:
+        intent = get_intent_by_ml(question)
+    else:
+        intent = get_intent(question)
+
+    if intent != 'Не удалось определить интент':
+        print(random.choice(BOT_CONFIG['intents'][intent]['responses']))
+    else:
+        print(random.choice(BOT_CONFIG['falture_phrases']))

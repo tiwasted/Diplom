@@ -10,6 +10,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
 
+from telegram import Update, ForceReply
+from telegram.ext import Updater, CommandHandler, CallbackContext, Filters, MessageHandler
+
+
 with open("BOT_CONFIG.json", "r", encoding="utf8") as file:
     BOT_CONFIG = json.load(file)
 
@@ -66,52 +70,7 @@ def get_intent_by_ml(text):
     return classifier.predict(vectorizer.transform([text]))[0]
 
 
-# print(model.predict(vectorizer.transform(["Депрессия"])))
-
-
-# def get_intent(input_text):
-#     for intent in BOT_CONFIG["intents"].keys():
-#         for example in BOT_CONFIG["intents"][intent]["examples"]:
-#             text1 = input_text.lower()
-#             text2 = example.lower()
-#             if edit_distance(text1, text2) / max(len(text1), len(text2)) < 0.34:
-#                 return intent
-#     return "Not Found"
-
-
-# def bot(input_text):
-#     intent = get_intent(input_text)
-#     if intent == "Not found":
-#         return "Мы вас не поняли"
-#     else:
-#         return random.choice(BOT_CONFIG["intents"][intent]["responses"])
-
-
-def get_intent_by_ml(text):
-    return model.predict(vectorizer.transform([text]))[0]
-
 # Запуск Бота
-
-
-def bot(ml):
-    question = input()
-
-    if ml:
-        intent = get_intent_by_ml(question)
-    else:
-        intent = get_intent(question)
-
-    if intent != 'Не удалось определить интент':
-        print(random.choice(BOT_CONFIG['intents'][intent]['responses']))
-    else:
-        print(random.choice(BOT_CONFIG['falture_phrases']))
-
-
-while True:
-    bot(True)
-
-
-# Подключение Telegram
 
 
 def bot(ml, question):
@@ -121,6 +80,54 @@ def bot(ml, question):
         intent = get_intent(question)
 
     if intent != 'Не удалось определить интент':
-        print(random.choice(BOT_CONFIG['intents'][intent]['responses']))
+        return (random.choice(BOT_CONFIG['intents'][intent]['responses']))
     else:
-        print(random.choice(BOT_CONFIG['falture_phrases']))
+        return (random.choice(BOT_CONFIG['falture_phrases']))
+
+
+# Подключение Telegram
+
+def start(update: Update, context: CallbackContext) -> None:
+    """Send a message when the command /start is issued."""
+    user = update.effective_user
+    update.message.reply_markdown_v2(
+        fr'Hi {user.mention_markdown_v2()}\!',
+        reply_markup=ForceReply(selective=True),
+    )
+
+
+def help_command(update: Update, context: CallbackContext) -> None:
+    """Send a message when the command /help is issued."""
+    update.message.reply_text('Help!')
+
+
+def echo(update: Update, context: CallbackContext) -> None:
+    """Echo the user message."""
+    ml = True
+    update.message.reply_text(bot(ml, update.message.text))
+
+
+def main() -> None:
+    """Start the bot."""
+    updater = Updater("")
+
+    dispatcher = updater.dispatcher
+
+    # on different commands - answer in Telegram
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("help", help_command))
+
+    # on non command i.e message - echo the message on Telegram
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.idle()
+
+
+if __name__ == '__main__':
+    main()
